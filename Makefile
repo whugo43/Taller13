@@ -1,3 +1,4 @@
-
-programa: productor_consumidor.c
-	gcc -Wall -pthread productor_consumidor.c -o pc
+pc: productor_consumidor.c
+	gcc -Wall productor_consumidor.c -o pc -pthread
+clean:
+	rm -rf pc
