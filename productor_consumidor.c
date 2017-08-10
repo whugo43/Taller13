@@ -12,27 +12,84 @@
 pthread_mutex_t mutex; 
 pthread_cond_t no_lleno=PTHREAD_COND_INITIALIZER; 
 pthread_cond_t no_vacio=PTHREAD_COND_INITIALIZER; 
-int cola;  
- 
+int cola; 
+////////////////
+int entrada = 0;
+int salida = 0;
+int contador = 0;
+int vacio=DATOS_A_PRODUCIR;
+
+
+//Producir
+int producir() {
+    printf("Contador = %dn", contador);
+    printf("[+] Produciendo n");
+    return 5;
+}
+
+
 void Productor(void *arg) { 
   int num=(int )arg;
   pthread_mutex_lock(&mutex); 
+
   while (cola == MAX_BUFFER){ /* lleno */
    pthread_cond_wait(&no_lleno, &mutex); /*  bloqueo */
-  }
+   
+
+ int item;
+    item = producir();
+    buffer[entrada] = item;
+      entrada = (entrada + 1) % DATOS_A_PRODUCIR;
+      contador++;
+ //pthread_cond_signal(&mutex);
+   //    pthread_cond_signal(&lleno);
+
+
+ }
+
   printf("Productor i ha producido 1 item, tamaño cola = : %d \n", cola);
   cola ++;
-  pthread_cond_signal(&no_vacio); 
-  pthread_mutex_unlock(&mutex);
+
+
+
+ 
+ pthread_cond_signal(&&mutex);
+
+
   pthread_exit(0);
 }
- 
+
+
+
+ // Consumir
+int consumir(int item) {
+    printf("Contador = %dn", contador);
+    printf("[-] Consumiendo n");
+    return 0;
+}
+
+
+
+
 void Consumidor(void){
   int num=(int )arg;
   pthread_mutex_lock(&mutex); 
-  while (cola == 0){ 
-   pthread_cond_wait(&no_vacio, &mutex); 
+  while (cola == 0){      
+   pthread_cond_wait(&no_vacio, &mutex);
+
+   item = buffer[salida];
+   salida = (salida + 1) % DATOS_A_PRODUCIR;
+   contador--;
+ //pthread_cond_signal(&mutex);
+ // pthread_cond_signal(&vacio);
+   consumir(item);
+
   }
+
+
+
+
+
   printf("Consumidor j ha consumido 1 item, tamaño cola = ...  \n", cola); /* consume dato */
   cola --;
   pthread_cond_signal(&no_lleno); 
@@ -67,18 +124,7 @@ int main(int argc, char *argv[]){
         fprintf(stderr, "Error al crear el hilo : %d\n");
         exit(-1); 
       }
-
-
-
-
     }
-
-
-
-
-
-
-
 
 
     pthread_t th1, th2;
