@@ -6,60 +6,64 @@
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER; 
 pthread_cond_t cc = PTHREAD_COND_INITIALIZER;
 pthread_cond_t cp = PTHREAD_COND_INITIALIZER;
+//globales de parametros
 int tam_cola = 0;
-int cola = 0;
 int total_items = 0;
-int producidos = 0;
 double tiempo_prod = 0;
 double tiempo_cons = 0;
 
-void* consumidor(void * arg){ 
+int cola = 0;
+int producidos = 0;
+
+void* Consumidor(void * arg){ 
   int fin=0;
   while(fin==0){  
     pthread_mutex_lock(&mutex);
-    while(cola == 0)
-      pthread_cond_wait(&cc,&mutex);
-    usleep(tiempo_cons);
-    cola--;
-    printf("Consumidor %d ha consumido 1 item, tamaño cola = %d\n",*((int *)arg),cola);
-    if(producidos == total_items && cola == 0)
+    if(producidos == total_items && cola == 0) {
       fin = 1;
+    }else{
+      while(cola == 0 )
+        pthread_cond_wait(&cc,&mutex);
+      usleep(tiempo_cons);
+      cola--;
+      printf("Consumidor %d ha consumido 1 item, tamaño cola = %d\n",*((int *)arg),cola);
+      pthread_cond_signal(&cp);
+    }
     pthread_mutex_unlock(&mutex);
-    pthread_cond_broadcast(&cp);
   }
   return (void*)1;  
 }
 
-void* productor(void * arg){ 
+void* Productor(void * arg){ 
   int fin=0;
   while(fin==0){
     pthread_mutex_lock(&mutex);
+    if(producidos == total_items){
+      fin = 1;
+    }else{
     while(cola == tam_cola)
       pthread_cond_wait(&cp,&mutex);
     usleep(tiempo_prod);
     cola++;
     producidos++;
     printf("Productor %d ha producido 1 item, tamaño cola = %d\n",*((int *)arg),cola);
-    if(producidos == total_items)
-      fin = 1;
-    pthread_mutex_unlock(&mutex);
-    pthread_cond_broadcast(&cc);
+    pthread_cond_signal(&cc);
+    }
+    pthread_mutex_unlock(&mutex);   
   } 
-
   return (void*)1;
 }
 
 
 int main(int argc, char** argv){
   if (argc==7){
-
     //obteniendo los parametros 
     int num_hilos_prod = atoi(argv[1]);
     tiempo_prod = atof(argv[2])/1000000;
     int num_hilos_cons = atoi(argv[3]);
     tiempo_cons = atof(argv[4])/1000000;
     tam_cola = atoi(argv[5]);
-    int total_items = atoi(argv[6]);
+    total_items = atoi(argv[6]);
 
     //mostrando informacion
     printf("Numero de productores: %d\n", num_hilos_prod);
@@ -70,8 +74,8 @@ int main(int argc, char** argv){
     printf("Total de items a producir: %d elementos.\n\n", total_items);
 
     //creando arreglos para almacenar para almacenar todos los hilos requeridos
-    pthread_t *productores = (pthread_t *)malloc(sizeof(pthread_t)*num_hilos_prod);  
     pthread_t *consumidores = (pthread_t *)malloc(sizeof(pthread_t)*num_hilos_cons);
+    pthread_t *productores = (pthread_t *)malloc(sizeof(pthread_t)*num_hilos_prod);  
 
     //determinar la maxima cantidad de hilo a usar
     int hiloMax = 0;
@@ -80,16 +84,24 @@ int main(int argc, char** argv){
     else
       hiloMax = num_hilos_prod;
     
+    int *arreglos=malloc(hiloMax*sizeof(int));
+    for(int i=0;i<hiloMax;i++){
+      arreglos[i] = i+1;
+    }
+
     //creando los hilos
     for(int i=0;i<hiloMax;i++){
-      if(i<num_hilos_cons) pthread_create(&(consumidores[i]),NULL,consumidor,&i); 
-      if(i<num_hilos_prod) pthread_create(&(productores[i]),NULL,productor,&i);
+      if(i<num_hilos_cons) pthread_create(&(consumidores[i]),NULL,Consumidor,&arreglos[i]); 
+      if(i<num_hilos_prod) pthread_create(&(productores[i]),NULL,Productor,&arreglos[i]);
     }
     //esperando hilos
     for(int i=0;i<hiloMax;i++){
-      if(i<num_hilos_cons) pthread_join(consumidores[i],NULL); 
       if(i<num_hilos_prod) pthread_join(productores[i],NULL);
+      if(i<num_hilos_cons) pthread_join(consumidores[i],NULL); 
+      
     }
+    pthread_cond_destroy(&cc);
+    pthread_cond_destroy(&cp);
     return 0;
 }else{
   printf("Uso del programa <num_hilos_prod> <tiempo_prod> <num_hilos_cons> <tiempo_cons> <tam_cola> <total_items> \n");
