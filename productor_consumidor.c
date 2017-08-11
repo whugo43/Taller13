@@ -13,8 +13,6 @@ int producidos = 0;
 double tiempo_prod = 0;
 double tiempo_cons = 0;
 
-void mostrarinfo(int nhilos_prod, int nhilos_cons, double tiempo_cons, double tiempo_prod, int total_items);
-
 void* consumidor(void * arg){ 
   int fin=0;
   while(fin==0){  
