@@ -20,18 +20,18 @@ void* Consumidor(void * arg){
   int fin=0;
   while(fin==0){  
     pthread_mutex_lock(&mutex);
-      while(cola == 0 )
+      while(cola == 0 &&  producidos<total_items)
         pthread_cond_wait(&cc,&mutex);
       usleep(tiempo_cons);
       if(consumidos<total_items){
       consumidos++;
       --cola;
       printf("Consumidor %d ha consumido 1 item, tamaño cola = %d\n",*((int *)arg),cola);
+    }else{
+      fin=10 ;
     }
-      if((consumidos == total_items || producidos == total_items) && cola == 0) fin=10 ;
-         
-    pthread_cond_broadcast(&cp);
- pthread_mutex_unlock(&mutex);
+    pthread_cond_signal(&cp);
+    pthread_mutex_unlock(&mutex);
     
     
   }
@@ -43,18 +43,19 @@ void* Productor(void * arg){
   int fin=0;
   while(fin==0){
     pthread_mutex_lock(&mutex);
-    while(cola == tam_cola )
+    while(cola == tam_cola && consumidos<total_items)
       pthread_cond_wait(&cp,&mutex);
      usleep(tiempo_prod);
     if(producidos<total_items){
     cola++;
     producidos++;
     printf("Productor %d ha producido 1 item, tamaño cola = %d\n",*((int *)arg),cola);
+  }else{
+fin=10;
   }
-    if(producidos == total_items || consumidos == total_items ) fin=10;
-    
-    pthread_cond_broadcast(&cc);
-   pthread_mutex_unlock(&mutex); 
+    pthread_cond_signal(&cc); 
+   pthread_mutex_unlock(&mutex);
+   
   }
   return (void*)1;
 }
@@ -101,16 +102,15 @@ int main(int argc, char** argv){
       
     }
     //esperando hilos
+    
     for(int i=0;i<hiloMax;i++){
-if(i<num_hilos_prod) pthread_join(consumidores[i],NULL);
       if(i<num_hilos_prod) pthread_join(productores[i],NULL);
-
-    
-    
+      if(i<num_hilos_cons) pthread_join(consumidores[i],NULL);
       
     }
     pthread_cond_destroy(&cc);
     pthread_cond_destroy(&cp);
+
     return 0;
 }else{
   printf("Uso del programa <num_hilos_prod> <tiempo_prod> <num_hilos_cons> <tiempo_cons> <tam_cola> <total_items> \n");
