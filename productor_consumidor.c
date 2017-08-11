@@ -14,43 +14,48 @@ double tiempo_cons = 0;
 
 int cola = 0;
 int producidos = 0;
+int consumidos=0;
 
 void* Consumidor(void * arg){ 
   int fin=0;
   while(fin==0){  
     pthread_mutex_lock(&mutex);
-    if(producidos == total_items && cola == 0) {
-      fin = 1;
-    }else{
       while(cola == 0 )
         pthread_cond_wait(&cc,&mutex);
       usleep(tiempo_cons);
-      cola--;
+      if(consumidos<total_items){
+      consumidos++;
+      --cola;
       printf("Consumidor %d ha consumido 1 item, tamaño cola = %d\n",*((int *)arg),cola);
-      pthread_cond_signal(&cp);
     }
-    pthread_mutex_unlock(&mutex);
+      if((consumidos == total_items || producidos == total_items) && cola == 0) fin=10 ;
+         
+    pthread_cond_broadcast(&cp);
+ pthread_mutex_unlock(&mutex);
+    
+    
   }
   return (void*)1;  
 }
+
 
 void* Productor(void * arg){ 
   int fin=0;
   while(fin==0){
     pthread_mutex_lock(&mutex);
-    if(producidos == total_items){
-      fin = 1;
-    }else{
-    while(cola == tam_cola)
+    while(cola == tam_cola )
       pthread_cond_wait(&cp,&mutex);
-    usleep(tiempo_prod);
+     usleep(tiempo_prod);
+    if(producidos<total_items){
     cola++;
     producidos++;
     printf("Productor %d ha producido 1 item, tamaño cola = %d\n",*((int *)arg),cola);
-    pthread_cond_signal(&cc);
-    }
-    pthread_mutex_unlock(&mutex);   
-  } 
+  }
+    if(producidos == total_items || consumidos == total_items ) fin=10;
+    
+    pthread_cond_broadcast(&cc);
+   pthread_mutex_unlock(&mutex); 
+  }
   return (void*)1;
 }
 
@@ -91,13 +96,17 @@ int main(int argc, char** argv){
 
     //creando los hilos
     for(int i=0;i<hiloMax;i++){
-      if(i<num_hilos_cons) pthread_create(&(consumidores[i]),NULL,Consumidor,&arreglos[i]); 
       if(i<num_hilos_prod) pthread_create(&(productores[i]),NULL,Productor,&arreglos[i]);
+      if(i<num_hilos_cons) pthread_create(&(consumidores[i]),NULL,Consumidor,&arreglos[i]); 
+      
     }
     //esperando hilos
     for(int i=0;i<hiloMax;i++){
+if(i<num_hilos_prod) pthread_join(consumidores[i],NULL);
       if(i<num_hilos_prod) pthread_join(productores[i],NULL);
-      if(i<num_hilos_cons) pthread_join(consumidores[i],NULL); 
+
+    
+    
       
     }
     pthread_cond_destroy(&cc);
@@ -108,4 +117,5 @@ int main(int argc, char** argv){
   return -1;
   }
 }
+
 
